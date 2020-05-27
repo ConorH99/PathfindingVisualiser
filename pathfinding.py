@@ -48,9 +48,6 @@ class GUI:
         self.running = True
         while self.running:
             self.events()
-            self.dijkstra(self.start_ver, self.target_ver)
-            self.trace_path(self.target_ver)
-            pg.time.delay(2000)
         pg.quit()
 
     def draw(self):
@@ -64,6 +61,14 @@ class GUI:
                 if (j, i) not in self.grid.closed and (j, i) not in self.grid.locs:
                     pg.draw.rect(self.screen, WHITE, (j*self.cell_size+j, i*self.cell_size+i, self.cell_size, self.cell_size))
         pg.display.flip()
+
+    def events(self):
+        for event in pg.event.get():
+            if event.type == QUIT:
+                self.running = False
+            elif event.type == KEYDOWN:
+                if event.key == K_SPACE:
+                    self.dijkstra((1, 2), (20, 20))
 
     def trace_path(self, index):
         if index == None:
@@ -90,6 +95,9 @@ class GUI:
         self.grid.locs[source] = elt
         self.draw()
         while self.grid.open.length() != 0:
+            for event in pg.event.get():
+                if event.type == QUIT:
+                    self.running = False
             min = self.grid.open.remove_min()
             minElt = min.value
             minCost = min.key
@@ -98,6 +106,7 @@ class GUI:
             self.grid.closed[minElt] = (minCost, predecessor)
             self.draw()
             if minElt == destination:
+                self.trace_path(self.target_ver)
                 return self.grid.closed
             for cellLocation in self.grid.structure[minElt[0]][minElt[1]].neighbours:
                 neighbourCell = cellLocation
@@ -112,17 +121,6 @@ class GUI:
                         self.grid.preds[neighbourCell] = minElt
                         self.grid.locs[neighbourCell].key = newcost
                         self.draw()
-        return self.grid.closed
-    
-
-    def events(self):
-        for event in pg.event.get():
-            if event.type == QUIT:
-                self.running = False
-            elif event.type == KEYDOWN:
-                if event.key == K_SPACE:
-                    self.grid.dijkstra((1, 2), (20, 20))
-                    self.trace_path(self.grid.closed[index][1])
 
 
     
