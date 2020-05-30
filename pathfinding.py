@@ -1,39 +1,47 @@
-from apq import *
 import math
 import pygame as pg
 from pygame.locals import *
+import tkinter as tk
+from apq import *
 from settings import *
+
+pg.init()
 
 # Creates a matrix of Cell objects and gives each cell a reference to all its neighbours
 class Grid:
 
-    def __init__(self, rows, cols):
+    def __init__(self, screen, rows, cols):
         # A matrix of cell objects
+        self.rows = rows
+        self.cols = cols
+        self.screen = screen
         self.structure = [[Cell(x, y) for x in range(cols)]for y in range(rows)]
-        self.get_neighbours()
+        self.generate_neighbours()
 
-    # Gives each cell references to its neighbours and prevents the indices from going out of range
+    # Gives each cell references to its neighbours and prevents the list indices from going out of range
     # If a neighbour is diagonally positioned from a cell then the cost to get to the neighbour is 2
     # Else its a cost of 1
-    def get_neighbours(self):
+    def generate_neighbours(self):
         for y in range(len(self.structure)):
             for x in range(len(self.structure[y])):
+                cell = self.structure[y][x]
                 if x > 0:
-                    self.structure[y][x].neighbours[(y, x-1)] = 1
+                    cell.get_left()
                 if y > 0:
-                    self.structure[y][x].neighbours[(y-1, x)] = 1
+                    cell.get_top()
                 if x < len(self.structure[y])-1:
-                    self.structure[y][x].neighbours[(y, x+1)] = 1
+                    cell.get_right()
                 if y < len(self.structure)-1:
-                    self.structure[y][x].neighbours[(y+1, x)] = 1
+                    cell.get_bottom()
                 if y > 0 and x > 0:
-                    self.structure[y][x].neighbours[(y-1, x-1)] = 2
+                    cell.get_top_left()
                 if y > 0 and x < len(self.structure[y])-1:
-                    self.structure[y][x].neighbours[(y-1, x+1)] = 2
+                    cell.get_top_right()
                 if y < len(self.structure)-1 and x < len(self.structure[y])-1:
-                    self.structure[y][x].neighbours[(y+1, x+1)] = 2
+                    cell.get_bottom_right()
                 if y < len(self.structure)-1 and x > 0:
-                    self.structure[y][x].neighbours[(y+1, x-1)] = 2
+                    cell.get_bottom_left()
+                    
 
     
 class Cell:
@@ -51,66 +59,102 @@ class Cell:
         outstr = f"{self.x}, {self.y}"
         return outstr
 
-    def draw_cell(self):
+    def draw_cell(self, screen):
         if not self.blocked:
             if self.in_open:
-                pg.draw.rect(screen, YELLOW, (self.x*self.cell_size+self.x, self.y*self.cell_size+self.y, self.cell_size, self.cell_size))
+                self.cell_rect(screen, YELLOW)
             elif self.in_closed:
-                pg.draw.rect(screen, RED, (self.x*self.cell_size+self.x, self.y*self.cell_size+self.y, self.cell_size, self.cell_size))
+                self.cell_rect(screen, RED)
             else:
-                pg.draw.rect(screen, WHITE, (self.x*self.cell_size+self.x, self.y*self.cell_size+self.y, self.cell_size, self.cell_size))
+                self.cell_rect(screen, WHITE)
         else:
-            pg.draw.rect(screen, BLACK, (self.x*self.cell_size+self.x, self.y*self.cell_size+self.y, self.cell_size, self.cell_size))
+            self.cell_rect(screen, BLACK)
 
-def run(source, dest):
+    def cell_rect(self, screen, colour):
+        x_pos = self.x*self.cell_size+self.x
+        y_pos = self.y*self.cell_size+self.y
+        width = self.cell_size
+        height = self.cell_size
+        pg.draw.rect(screen, colour, (x_pos, y_pos, width, height ))
+        
+    def get_left(self):
+        self.neighbours[(self.y, self.x-1)] = 1
+    
+    def get_right(self):
+        self.neighbours[(self.y, self.x+1)] = 1
+
+    def get_top(self):
+        self.neighbours[(self.y-1, self.x)] = 1
+
+    def get_bottom(self):
+        self.neighbours[(self.y+1, self.x)] = 1
+
+    def get_top_left(self):
+        self.neighbours[(self.y-1, self.x-1)] = 2
+
+    def get_top_right(self):
+        self.neighbours[(self.y-1, self.x+1)] = 2
+
+    def get_bottom_left(self):
+        self.neighbours[(self.y+1, self.x-1)] = 2
+
+    def get_bottom_right(self):
+        self.neighbours[(self.y+1, self.x+1)] = 2
+
+
+def run(screen, grid, source, dest):
         running = True
-        draw()
+        draw(screen, grid)
         while running:
+            pressed = pg.mouse.get_pressed()
+            if pressed[0]:
+                position = pg.mouse.get_pos()
+                block(screen, grid, position)
             for event in pg.event.get():
                 if event.type == QUIT:
                     running = False
                 elif event.type == KEYDOWN:
                     if event.key == K_SPACE:
-                        dijkstra(source, dest)
-                elif event.type == MOUSEBUTTONDOWN:
-                    position = pg.mouse.get_pos()
-                    block(position)
+                        dijkstra(screen, grid, source, dest)
         pg.quit()  
 
-def draw():
+def draw(screen, grid):
     screen.fill(BLACK)
     for i in range(len(grid.structure)):
         for j in range(len(grid.structure[i])):
-            grid.structure[i][j].draw_cell()
+            grid.structure[i][j].draw_cell(screen)
     pg.display.flip()
 
 
-def trace_path(index, closed):
+def trace_path(screen, grid, index, closed):
     if index == None:
         return True
     else:
         index_x = index[1]
         index_y = index[0]
-        cell_size = grid.structure[index_y][index_x].cell_size
-        pg.draw.rect(screen, BLUE, (index_x*cell_size+index_x, index_y*cell_size+index_y, cell_size, cell_size))
+        cell = grid.structure[index_y][index_x]
+        cell.cell_rect(screen, BLUE)
         pg.display.flip()
         pg.time.delay(100)
-        trace_path(closed[index][1], closed)
+        trace_path(screen, grid, closed[index][1], closed)
 
-def block(position):
+def block(screen, grid, position):
         x = position[0]
         y = position[1]
         row = math.ceil(y // CELL_SIZE) - 1
         col = math.ceil(x // CELL_SIZE) - 1
-        cell = grid.structure[row][col]
-        cell.blocked = True
-        draw()
+        try:
+            cell = grid.structure[row][col]
+            cell.blocked = True
+            draw(screen, grid)
+        except IndexError:
+            pass
 
 
 #Implementation of dijkstra using my own implementation of a min binary heap for the open cells
 # Locs stores the references to the open cells in the priority queue so that the algorithm can check whether
 # A cell is in open
-def dijkstra(source, destination):
+def dijkstra(screen, grid, source, destination):
 
     open = APQ()
     closed = {}
@@ -120,7 +164,7 @@ def dijkstra(source, destination):
     elt = open.add(0, source)
     locs[source] = elt
     grid.structure[source[0]][source[1]].in_open = True
-    draw()
+    draw(screen, grid)
     while open.length() != 0:
         for event in pg.event.get():
             if event.type == QUIT:
@@ -134,9 +178,9 @@ def dijkstra(source, destination):
         closed[minElt] = (minCost, predecessor)
         min_cell.in_open = False
         min_cell.in_closed = True
-        draw()
+        draw(screen, grid)
         if minElt == destination:
-            trace_path(destination, closed)
+            trace_path(screen, grid, destination, closed)
             return closed
         for cellLocation in grid.structure[minElt[0]][minElt[1]].neighbours:
                 neighbour_cell_obj = grid.structure[cellLocation[0]][cellLocation[1]]
@@ -147,17 +191,18 @@ def dijkstra(source, destination):
                         elt = open.add(newcost, cellLocation)
                         locs[cellLocation] = elt
                         neighbour_cell_obj.in_open = True
-                        draw()
+                        draw(screen, grid)
                     elif newcost < locs[cellLocation].key:
                         preds[neighbourCell] = minElt
                         locs[neighbourCell].key = newcost
-                        draw()
-
-pg.init()
-screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-grid = Grid(ROWS, COLS)
+                        draw(screen, grid)
+    print("---NO PATH AVAILABLE---")
+    return False
 
 def main():
-    run((2, 7), (20, 20))
+    pg.display.set_caption("PATHFINDING")
+    screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    grid = Grid(screen, ROWS, COLS)
+    run(screen, grid, (2, 7), (20, 20))
 
 main()
