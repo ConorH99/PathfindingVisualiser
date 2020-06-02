@@ -101,8 +101,36 @@ class Cell:
     def get_bottom_right(self):
         self.neighbours[(self.y+1, self.x+1)] = 2
 
+class Tkinter_GUI:
+
+    def __init__(self, screen, grid):
+        self.window = tk.Tk()
+        self.start_end_frame = tk.Frame(self.window)
+        self.start_end_frame.pack()
+        self.start_lbl = tk.Label(self.start_end_frame, text="Enter start coordinates:")
+        self.end_lbl = tk.Label(self.start_end_frame, text="Enter end coordinates:")
+        self.start_entry = tk.Entry(self.start_end_frame)
+        self.end_entry = tk.Entry(self.start_end_frame)
+        self.submit_btn = tk.Button(self.start_end_frame, text="Submit", command=self.on_submit)
+        self.start_lbl.pack()
+        self.start_entry.pack()
+        self.end_lbl.pack()
+        self.end_entry.pack()
+        self.submit_btn.pack()
+        self.pg_screen = screen
+        self.grid = grid
+        tk.mainloop()
+
+    def on_submit(self):
+        source = tuple(map(int, self.start_entry.get().split(",")))
+        dest = tuple(map(int, self.end_entry.get().split(",")))
+        self.window.destroy()
+        run(self.pg_screen, self.grid, source, dest)
+
+
 
 def run(screen, grid, source, dest):
+        print("running")
         running = True
         draw(screen, grid)
         while running:
@@ -200,9 +228,10 @@ def dijkstra(screen, grid, source, destination):
     return False
 
 def main():
+
     pg.display.set_caption("PATHFINDING")
     screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     grid = Grid(screen, ROWS, COLS)
-    run(screen, grid, (2, 7), (20, 20))
+    start_gui = Tkinter_GUI(screen, grid)
 
 main()
