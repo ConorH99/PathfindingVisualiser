@@ -1,7 +1,9 @@
 import math
+import sys
 import pygame as pg
 from pygame.locals import *
 import tkinter as tk
+from tkinter import messagebox as mb
 from apq import *
 from settings import *
 
@@ -54,19 +56,34 @@ class Cell:
         self.in_closed = False
         self.cell_size = CELL_SIZE
         self.blocked = False
+        self.is_source = False
+        self.is_dest = False
 
     def __str__(self):
         outstr = f"{self.x}, {self.y}"
         return outstr
 
     def draw_cell(self, screen):
+        if not self.is_source and not self.is_dest:
+            self.draw_dijkstra(screen)
+        else:
+            if self.is_source:
+                self.cell_rect(screen, GREEN)
+            elif self.is_dest:
+                self.cell_rect(screen, BLUE)
+
+    def draw_dijkstra(self, screen):
         if not self.blocked:
-            if self.in_open:
-                self.cell_rect(screen, YELLOW)
-            elif self.in_closed:
-                self.cell_rect(screen, RED)
-            else:
-                self.cell_rect(screen, WHITE)
+                if self.in_open:
+                    self.cell_rect(screen, YELLOW)
+                elif self.in_closed:
+                    self.cell_rect(screen, RED)
+                elif self.is_source:
+                    self.cell_rect(screen, BLUE)
+                elif self.is_dest:
+                    self.cell_rect(screen, GREEN)
+                else:
+                    self.cell_rect(screen, WHITE)
         else:
             self.cell_rect(screen, BLACK)
 
@@ -103,7 +120,7 @@ class Cell:
 
 class Tkinter_GUI:
 
-    def __init__(self, screen, grid):
+    def __init__(self):
         self.window = tk.Tk()
         self.start_end_frame = tk.Frame(self.window)
         self.start_end_frame.pack()
@@ -117,34 +134,44 @@ class Tkinter_GUI:
         self.end_lbl.pack()
         self.end_entry.pack()
         self.submit_btn.pack()
-        self.pg_screen = screen
-        self.grid = grid
+        self.source = None
+        self.dest = None
         tk.mainloop()
 
     def on_submit(self):
-        source = tuple(map(int, self.start_entry.get().split(",")))
-        dest = tuple(map(int, self.end_entry.get().split(",")))
+        while True:
+            try:
+                source = tuple(map(int, self.start_entry.get().split(",")))
+                dest = tuple(map(int, self.end_entry.get().split(",")))
+                break
+            except:
+                mb.showerror("ERROR!", "Start and end should be in the form\nint, int")
+                self.window.destroy()
+                main()
+        
+        self.source = source
+        self.dest = dest
         self.window.destroy()
-        run(self.pg_screen, self.grid, source, dest)
-
-
 
 def run(screen, grid, source, dest):
-        print("running")
-        running = True
-        draw(screen, grid)
-        while running:
-            pressed = pg.mouse.get_pressed()
-            if pressed[0]:
-                position = pg.mouse.get_pos()
-                block(screen, grid, position)
-            for event in pg.event.get():
-                if event.type == QUIT:
+    grid.structure[source[0]][source[1]].is_source = True
+    grid.structure[dest[0]][dest[1]].is_dest = True
+    running = True
+    draw(screen, grid)
+    while running:
+        pressed = pg.mouse.get_pressed()
+        if pressed[0]:
+            position = pg.mouse.get_pos()
+            block(screen, grid, position)
+        for event in pg.event.get():
+            if event.type == QUIT:
+                running = False
+            elif event.type == KEYDOWN:
+                if event.key == K_SPACE:
+                    dijkstra(screen, grid, source, dest)
+                    wait()
                     running = False
-                elif event.type == KEYDOWN:
-                    if event.key == K_SPACE:
-                        dijkstra(screen, grid, source, dest)
-        pg.quit()  
+    pg.quit()  
 
 def draw(screen, grid):
     screen.fill(BLACK)
@@ -152,7 +179,6 @@ def draw(screen, grid):
         for j in range(len(grid.structure[i])):
             grid.structure[i][j].draw_cell(screen)
     pg.display.flip()
-
 
 def trace_path(screen, grid, index, closed):
     if index == None:
@@ -177,6 +203,16 @@ def block(screen, grid, position):
             draw(screen, grid)
         except IndexError:
             pass
+def wait():
+    waiting = True
+    while waiting:
+        for event in pg.event.get():
+            if event.type == QUIT:
+                waiting = False
+            if event.type == KEYDOWN:
+                if event.key == K_SPACE:
+                    waiting = False
+                    main()
 
 
 #Implementation of dijkstra using my own implementation of a min binary heap for the open cells
@@ -196,7 +232,7 @@ def dijkstra(screen, grid, source, destination):
     while open.length() != 0:
         for event in pg.event.get():
             if event.type == QUIT:
-                running = False
+                sys.exit()
         min = open.remove_min()
         minElt = min.value
         minCost = min.key
@@ -224,14 +260,15 @@ def dijkstra(screen, grid, source, destination):
                         preds[neighbourCell] = minElt
                         locs[neighbourCell].key = newcost
                         draw(screen, grid)
-    print("---NO PATH AVAILABLE---")
+    mb.showerror("ERROR!", "No path available")
     return False
 
 def main():
 
+    start_gui = Tkinter_GUI()
     pg.display.set_caption("PATHFINDING")
     screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     grid = Grid(screen, ROWS, COLS)
-    start_gui = Tkinter_GUI(screen, grid)
+    run(screen, grid, start_gui.source, start_gui.dest)
 
 main()
